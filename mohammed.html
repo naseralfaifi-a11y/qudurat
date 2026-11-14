@@ -1302,6 +1302,7 @@ const ICON={
   grid:'<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="6" cy="8" r="2.3"/><circle cx="12" cy="8" r="2.3"/><circle cx="18" cy="8" r="2.3"/><circle cx="6" cy="16" r="2.3"/><circle cx="12" cy="16" r="2.3"/><circle cx="18" cy="16" r="2.3"/></g></svg>'
 };
 const DEF_DAYS=365, NAME='محمد';
+const PARENT=HOSTED&&(()=>{try{return localStorage.getItem('qudurat-home')==='1'&&localStorage.getItem('qudurat-role')!=='student';}catch(e){return false;}})();
 const TABS={today:'اليوم',plan:'الخطة',method:'الطريقة',tests:'تدريب',mistakes:'أخطائي'};
 
 /* ================= الحالة والحفظ ================= */
@@ -2448,6 +2449,44 @@ function summaryObj(st){
     bestBySection:best,weakest:weakest(agg).map(k=>GRN[k].n),weakQuant:weakTemplates(st,3).map(k=>GEN.META[k][2]),
     mistakes:Object.keys(st.wrong).length,notes:st.notes.length,sprintBest:st.sprint,vacationMode:!!st.cfg.boost};
 }
+
+/* ================= توصيات لولي الأمر ================= */
+const TYPE_TIP={
+  rd:'استيعاب المقروء يتحسن بالقراءة لا بالحل وحده: ربع ساعة قراءة يومياً من كتاب يختاره هو، واسأله عما قرأ.',
+  an:'التناظر يعتمد على المفردات وتسمية العلاقة: اطلب منه أن يقول العلاقة بين الكلمتين بصوت مسموع قبل أن ينظر إلى الخيارات.',
+  er:'في الخطأ السياقي يقرأ الجملة كاملة ثم يبحث عن الكلمة التي تناقض معناها. عشرة أسئلة بلا وقت تكفي لتثبيت الطريقة.',
+  co:'في إكمال الجمل ينتبه لأدوات الربط مثل «لكن» و«لذلك»، فهي التي تحدد الكلمة المطلوبة.',
+  ar:'للحساب: سباق الحساب الذهني كل يوم، وكتابة الخطوات على ورقة بدل الحساب في الذهن.',
+  ge:'للهندسة: يراجع ورقة القوانين في تبويب «الطريقة» ثم يحل من مسائلها.',
+  da:'في تفسير البيانات يقرأ عنوان الرسم ووحداته قبل السؤال. أخطاء هذا النوع أكثرها قراءة متعجلة.',
+  al:'في الجبر يعوّض الخيارات في المعادلة حين تطول الطريقة المباشرة.'
+};
+function adviceBox(A){
+  if(!A.length)A.push('لا ملاحظات الآن. استمر في طلب رسالة التقدم كل أسبوع.');
+  return '<section class="sheet"><div class="eyebrow"><span><b>توصيات لكما</b></span><span>من أرقامه في هذه الرسالة</span></div><ol class="prose sm">'
+    +A.slice(0,6).map(x=>'<li>'+ar(x)+'</li>').join('')+'</ol></section>';
+}
+function adviceHTML(st,y,agg,weak,old){
+  const A=[],c=st.cfg,v=y.voc,wids=Object.keys(st.wrong),noR=wids.filter(id=>!st.wrong[id].r).length,wt=weakTemplates(st,3);
+  if(old>=8)A.push('آخر رسالة منه عمرها '+days(old)+'. اطلب منه رسالة جديدة، فالأرقام هنا قديمة.');
+  if(!v.seen&&!y.q7[0]&&!st.runs.length&&!Object.keys(st.done).length&&!Object.keys(st.act).length){A.push('لم يبدأ بعد. اجلس معه في أول جلسة: مفردات اليوم خمس دقائق فقط، والبداية الصغيرة أسهل.');return adviceBox(A);}
+  if(diff(c.start,y.t)<4)A.push('ما زال في أيامه الأولى. المهم الآن أن يفتح صفحته كل يوم ولو لخمس دقائق، حتى تبدأ العادة.');
+  else if(y.a7<=2)A.push('نشط '+y.a7+' من آخر 7 أيام. اتفق معه على وقت ثابت كل يوم، مثل بعد صلاة المغرب؛ الوقت الثابت أنفع من التذكير المتكرر. وإن ضاق يومه فجلسة المفردات وحدها تكفي.');
+  else if(y.a7<=4)A.push('نشط '+y.a7+' من آخر 7 أيام. قريب من العادة ولم تثبت بعد: ساعده على ربطها بوقت محدد في يومه.');
+  else A.push('التزامه جيد: نشط '+y.a7+' من آخر 7 أيام. امدح الالتزام نفسه لا النتيجة، فهو ما نبنيه هذه السنة.');
+  const miss=y.P.ck.filter(x=>x.date<y.t&&bestSec(st,x.sec)==null)[0];
+  if(miss)A.push('فاته موعد «القسم '+miss.sec+'» الموقوت. ليحله في أقرب سبت، فهو المقياس الذي يبيّن هل العادة اليومية تعمل.');
+  if(v.due>=10)A.push('عنده '+v.due+' كلمة مستحقة للمراجعة. ليبدأ يومه بجلسة المفردات قبل أي شيء، حتى لا تتراكم.');
+  if(y.q7[0]>=20&&y.q7[1]/y.q7[0]<0.5)A.push('نسبة صوابه في آخر 7 أيام '+Math.round(y.q7[1]/y.q7[0]*100)+'%. هذا طبيعي في البداية، لكن تأكد أنه يقرأ الشرح بعد كل خطأ ولا يضغط «التالي» مباشرة. اجلس معه جلسة واحدة لترى طريقته.');
+  if(weak.length)A.push('أضعف أنواعه الآن «'+GRN[weak[0]].n+'». '+TYPE_TIP[weak[0]]);
+  if(wt.length)A.push('في المسائل المتجددة يتكرر خطؤه في: '+wt.map(k=>GEN.META[k][2]).join('، ')+'. في تبويب «أخطائي» عنده زر يعطيه خمس مسائل من النوع نفسه.');
+  if(noR>=5)A.push('في دفتر أخطائه '+noR+' بلا سبب محدد. اطلب منه أن يحدد سبب كل خطأ، فمعرفة السبب نصف العلاج.');
+  if(y.left>56&&y.left<=90)A.push('بقي على الاختبار '+days(y.left)+'. في آخر شهرين يحتاج إلى دورة تأسيس لفظية وأخرى كمية، فاختاراهما من الآن.');
+  if(!c.ok)A.push('موعد الاختبار في صفحته افتراضي. حين تعرفون الموعد التقريبي ليعدّله من الإعدادات في جواله.');
+  A.push('القراءة الحرة لا تسجلها الصفحة. اسأله مرة في الأسبوع عما يقرأ.');
+  return adviceBox(A);
+}
+
 /* ================= تقرير المتابعة ================= */
 function timeOf(ts){
   try{return new Intl.DateTimeFormat('ar-SA-u-nu-arab-ca-gregory',{hour:'numeric',minute:'2-digit'}).format(new Date(ts));}
@@ -2470,6 +2509,7 @@ function reportHTML(st,who){
   else h+='<li>لم يحل قسماً موقوتاً بعد.</li>';
   if(weak.length)h+='<li>الأضعف الآن: '+weak.map(k=>GRN[k].n).join(' و')+'.</li>';
   h+='</ul></section>';
+  if(!self)h+=adviceHTML(st,y,agg,weak,old);
 
   h+=habitCard(st,false,ref);
 
@@ -2506,7 +2546,7 @@ const FKEY='qudurat-m-follow-v1';
 let fw=null, DB=null, isOwner=false;
 function followScreen(){
   const self=fw.mode==='self';
-  let h='<div class="r-top"><button class="icon-btn" type="button" data-act="close-run" aria-label="إغلاق">'+ICON.x+'</button><div class="ttl"><b>'+(self?'تقريري':'لوحة المتابعة')+'</b><span>'
+  let h='<div class="r-top">'+(PARENT&&!self?'<a class="btn sm ghost" href="./">الأبناء</a>':'<button class="icon-btn" type="button" data-act="close-run" aria-label="إغلاق">'+ICON.x+'</button>')+'<div class="ttl"><b>'+(self?'تقريري':PARENT?'متابعة '+NAME:'لوحة المتابعة')+'</b><span>'
     +(self?'ما يراه والدك حين ترسل تقدمك':fw.saved==='cloud'?'محفوظ في حسابك':fw.saved==='local'?'محفوظ على هذا الجهاز':'لولي الأمر')+'</span></div></div><div class="r-body" id="rb"><div class="r-in">';
   if(fw.st)h+=reportHTML(fw.st,self?'self':'parent');
   if(!self){
@@ -2520,7 +2560,16 @@ function followScreen(){
       +'<div class="btns"><button class="btn sm ghost" type="button" data-act="follow-copy">انسخ آخر رمز لإعادته إليه</button></div>'
       +'<p class="muted">إن ضاع تقدمه من جهازه فأرسل له هذا الرمز، فيستعيده من الإعدادات.</p></section>';
   }
+  if(PARENT&&!self)h+='<div class="btns"><button class="btn sm quiet" type="button" data-act="be-student">هذا جوال '+NAME+' نفسه؟ افتح صفحة التدريب</button></div>';
   return h+'</div></div>';
+}
+/* جهاز ولي الأمر: الصفحة لوحة متابعة فقط. إن كان قد لصق رسالة في بطاقة الاستعادة فتُنقل إلى اللوحة. */
+function parentBoot(){
+  let rec=null;try{rec=JSON.parse(localStorage.getItem(FKEY)||'null');}catch(e){}
+  openFollow('parent');
+  if(rec||!S.u)return;
+  const my=fw;
+  pack(S).then(code=>{if(fw===my&&fw&&!fw.st)applyFollow(code,0,'local',true).catch(()=>{});});
 }
 function followSave(code,st){
   const rec={code:code,u:st.u,at:Date.now()};
@@ -2722,7 +2771,8 @@ const ACT={
   },
   'exit-keep':()=>{if(run){if(run.stage==='q'&&part().limit){run.acc=elapsed();run.paused=true;}persist();flush();}closeRunner();},
   'exit-drop':()=>{if(run&&!run.vol)S.live=null;save();closeRunner();},
-  'close-run':()=>closeRunner(),
+  'close-run':()=>{if(PARENT&&fw&&fw.mode==='parent'){location.href='./';return;}closeRunner();},
+  'be-student':()=>{try{localStorage.setItem('qudurat-role','student');}catch(e){}location.reload();},
   sp:b=>{
     if(!sp||sp.over||sp.lock)return;
     const i=+b.dataset.i,ok=i===sp.q.a;
@@ -2766,6 +2816,7 @@ function start(data){
   tab=TABS[h]?h:(data&&TABS[data.tab]?data.tab:'today');
   draw();
   initCloud();
+  if(PARENT)parentBoot();
   idbRead().then(t=>{
     if(!t)return;
     try{const o=JSON.parse(t);if(o&&(+o.u||0)>(+S.u||0)&&!run&&!sp&&!vs){S=norm(o);lsWrite(t);draw();}}catch(e){}
