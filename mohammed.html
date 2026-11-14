@@ -401,7 +401,17 @@ details.rev .opt{font-size:17.5px;min-height:44px;padding:7px 10px}
 <link rel="apple-touch-icon" href="icon-mohammed.png">
 <link rel="icon" type="image/png" href="icon-mohammed.png">
 <link rel="manifest" href="mohammed.webmanifest">
-<style>#app{padding-bottom:56px}.r-body{padding-bottom:72px}#modal{padding-bottom:12px}</style>
+<style>#app{padding-bottom:56px}.r-body{padding-bottom:72px}#modal{padding-bottom:12px}
+.homebar{display:flex;width:max-content;align-items:center;min-height:40px;margin-top:6px;font-size:14px;color:var(--form);text-decoration:none}</style>
+<script>
+/* من فتح الصفحة من صفحة الدخول (جهاز الوالدين) يرى رابط الرجوع إليها. جوال الابن لا يزور صفحة الدخول فلا يظهر عنده. */
+document.addEventListener('DOMContentLoaded',function(){
+  var home=false;try{home=localStorage.getItem('qudurat-home')==='1';}catch(e){}
+  if(!home)return;
+  var a=document.createElement('a');a.className='homebar';a.href='./';a.innerHTML='<span aria-hidden="true" style="margin-inline-end:6px">→</span><span>اختيار ابن آخر</span>';
+  var app=document.getElementById('app');if(app)app.insertBefore(a,app.firstChild);
+});
+</script>
 </head>
 <body>
 <div id="app">
