@@ -38,8 +38,35 @@ ol{margin:0;padding-inline-start:22px;color:var(--soft);font-size:14px}
 <li>افتحها بعد ذلك من أيقونتها دائماً.</li>
 </ol>
 </div>
-<p class="note">لولي الأمر: لوحة المتابعة داخل كل صفحة، في بطاقة «المتابعة والنسخة الاحتياطية» من تبويب «اليوم».</p>
+<div class="note">
+<p><b>لولي الأمر</b></p>
+<p id="pmsg">أدخل رمز المتابعة مرة واحدة، فيظهر تقدم الأبناء في صفحاتهم تلقائياً.</p>
+<div id="prow" style="display:flex;gap:8px;margin-top:10px">
+<input id="pin" inputmode="numeric" autocomplete="off" aria-label="رمز المتابعة" placeholder="رمز المتابعة" style="flex:1;min-width:0;font:inherit;font-size:16px;padding:10px 12px;border:1px solid var(--rule);border-radius:6px;background:var(--sheet);color:inherit">
+<button id="pbtn" type="button" style="font:inherit;font-weight:700;padding:10px 18px;border:0;border-radius:6px;background:var(--graphite);color:var(--paper)">حفظ</button>
+</div>
+</div>
 </main>
-<script>try{localStorage.setItem('qudurat-home','1');}catch(e){}</script>
+<script>
+try{localStorage.setItem('qudurat-home','1');}catch(e){}
+(function(){
+  var URL_='https://script.google.com/macros/s/AKfycbxx1SHI2Dx6gZVYUbSBbpQzlRpbU0ADC9Am5d6vgbhqS7uc89eMy71vFopuDao9P3lwlw/exec',NAMES={abdullah:'عبدالله',mohammed:'محمد'};
+  var msg=document.getElementById('pmsg'),row=document.getElementById('prow'),pin=document.getElementById('pin'),btn=document.getElementById('pbtn');
+  function ago(t){var m=Math.round((Date.now()-new Date(t).getTime())/60000);if(!(m>=0))return '';if(m<2)return 'الآن';if(m<60)return 'قبل '+m+' دقيقة';var h=Math.round(m/60);if(h<24)return 'قبل '+h+' ساعة';return 'قبل '+Math.round(h/24)+' يوماً';}
+  function check(pass,typed){
+    msg.textContent='جارٍ التحقق…';
+    fetch(URL_+'?pass='+encodeURIComponent(pass)+'&t='+Date.now()).then(function(r){return r.json();}).then(function(d){
+      if(!d||!d.ok){msg.textContent=typed?'الرمز غير صحيح.':'الرمز المحفوظ غير صحيح. أدخله من جديد.';row.style.display='flex';return;}
+      try{localStorage.setItem('qudurat-pass',pass);}catch(e){}
+      row.style.display='none';
+      var parts=Object.keys(NAMES).map(function(k){var x=d.kids&&d.kids[k];return NAMES[k]+': '+(x?'آخر وصول '+ago(x.t):'لم يصل شيء بعد');});
+      msg.textContent='المتابعة التلقائية تعمل. '+parts.join('، ')+'.';
+    }).catch(function(){msg.textContent='تعذّر الاتصال الآن. حاول بعد قليل.';});
+  }
+  btn.addEventListener('click',function(){var v=pin.value.trim();if(v)check(v,true);});
+  var saved='';try{saved=localStorage.getItem('qudurat-pass')||'';}catch(e){}
+  if(saved){row.style.display='none';check(saved,false);}
+})();
+</script>
 </body>
 </html>

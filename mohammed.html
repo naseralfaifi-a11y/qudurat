@@ -403,6 +403,7 @@ details.rev .opt{font-size:17.5px;min-height:44px;padding:7px 10px}
 <link rel="manifest" href="mohammed.webmanifest">
 <style>#app{padding-bottom:56px}.r-body{padding-bottom:72px}#modal{padding-bottom:12px}
 .homebar{display:flex;width:max-content;align-items:center;min-height:40px;margin-top:6px;font-size:14px;color:var(--form);text-decoration:none}</style>
+<script>window.QSYNC={url:"https://script.google.com/macros/s/AKfycbxx1SHI2Dx6gZVYUbSBbpQzlRpbU0ADC9Am5d6vgbhqS7uc89eMy71vFopuDao9P3lwlw/exec",kid:"mohammed"};</script>
 <script>
 /* من فتح الصفحة من صفحة الدخول (جهاز الوالدين) يرى رابط الرجوع إليها. جوال الابن لا يزور صفحة الدخول فلا يظهر عنده. */
 document.addEventListener('DOMContentLoaded',function(){
@@ -1411,7 +1412,7 @@ function flush(){
   const a=lsWrite(t);
   idbWrite(t).then(b=>{canStore=a||b;});
 }
-function save(){S.u=Date.now();clearTimeout(saveT);saveT=setTimeout(flush,200);}
+function save(){S.u=Date.now();clearTimeout(saveT);saveT=setTimeout(flush,200);syncSoon();}
 
 /* ---- المهام المنجزة والنشاط اليومي ---- */
 function bits(m){let n=0;m|=0;while(m){n+=m&1;m>>>=1;}return n;}
@@ -1761,7 +1762,7 @@ function ago(ts){
 }
 function shareCard(){
   return '<section class="sheet"><div class="eyebrow"><span><b>المتابعة والنسخة الاحتياطية</b></span><span>آخر إرسال: '+ago(S.sent)+'</span></div>'
-    +'<p class="prose sm">'+(HOSTED?'تقدمك محفوظ في هذا الجهاز. أرسله لوالدك مرة كل أسبوع على الأقل: يتابعك به، وتبقى عنده نسخة تستعيدها إن تغيّر جوالك أو مُسحت بياناته.':'متصفح الآيفون قد يمسح تقدمك حين يُغلق، فاضغط «أرسل تقدمي» بعد كل جلسة. الرسالة هي نسختك: تلصقها هنا فيعود كل شيء.')+'</p>'
+    +'<p class="prose sm">'+(QS?'تقدمك محفوظ في هذا الجهاز، ويصل إلى والديك تلقائياً حين تكون متصلاً بالإنترنت. زر الإرسال نسخة احتياطية تستعيد بها تقدمك إن تغيّر جوالك.':HOSTED?'تقدمك محفوظ في هذا الجهاز. أرسله لوالدك مرة كل أسبوع على الأقل: يتابعك به، وتبقى عنده نسخة تستعيدها إن تغيّر جوالك أو مُسحت بياناته.':'متصفح الآيفون قد يمسح تقدمك حين يُغلق، فاضغط «أرسل تقدمي» بعد كل جلسة. الرسالة هي نسختك: تلصقها هنا فيعود كل شيء.')+'</p>'
     +'<div class="btns stretch"><button class="btn" type="button" data-act="share">أرسل تقدمي</button><button class="btn ghost" type="button" data-act="report">اعرض تقريري</button></div>'
     +(isOwner?'':'<div class="btns"><button class="btn sm quiet" type="button" data-act="follow">ولي الأمر؟ افتح لوحة المتابعة</button></div>')+'</section>';
 }
@@ -2547,7 +2548,8 @@ let fw=null, DB=null, isOwner=false;
 function followScreen(){
   const self=fw.mode==='self';
   let h='<div class="r-top">'+(PARENT&&!self?'<a class="btn sm ghost" href="./">الأبناء</a>':'<button class="icon-btn" type="button" data-act="close-run" aria-label="إغلاق">'+ICON.x+'</button>')+'<div class="ttl"><b>'+(self?'تقريري':PARENT?'متابعة '+NAME:'لوحة المتابعة')+'</b><span>'
-    +(self?'ما يراه والدك حين ترسل تقدمك':fw.saved==='cloud'?'محفوظ في حسابك':fw.saved==='local'?'محفوظ على هذا الجهاز':'لولي الأمر')+'</span></div></div><div class="r-body" id="rb"><div class="r-in">';
+    +(self?'ما يراه والدك حين ترسل تقدمك':fw.saved==='auto'?'يصل تلقائياً من جواله':fw.saved==='cloud'?'محفوظ في حسابك':fw.saved==='local'?'محفوظ على هذا الجهاز':'لولي الأمر')+'</span></div></div><div class="r-body" id="rb"><div class="r-in">';
+  if(!self)h+=syncNote();
   if(fw.st)h+=reportHTML(fw.st,self?'self':'parent');
   if(!self){
     const box='<label class="field" for="f-code">'+(fw.st?'الصق رسالة أحدث':'الصق هنا الرسالة التي أرسلها '+NAME)+'<textarea id="f-code" class="code" rows="4"></textarea></label>'
@@ -2567,6 +2569,7 @@ function followScreen(){
 function parentBoot(){
   let rec=null;try{rec=JSON.parse(localStorage.getItem(FKEY)||'null');}catch(e){}
   openFollow('parent');
+  syncDown();
   if(rec||!S.u)return;
   const my=fw;
   pack(S).then(code=>{if(fw===my&&fw&&!fw.st)applyFollow(code,0,'local',true).catch(()=>{});});
@@ -2616,6 +2619,47 @@ function openFollow(mode){
   if(rec&&typeof rec.code==='string')applyFollow(rec.code,0,'local',false).then(fromCloud,fromCloud);
   else fromCloud();
 }
+/* ================= المزامنة التلقائية (الموقع المستقل فقط) ================= */
+/* جوال الابن يرسل رمز تقدمه إلى جدول في حساب ولي الأمر، وجوال ولي الأمر يقرؤه برمز المتابعة. */
+const QS=(HOSTED&&window.QSYNC&&window.QSYNC.url)?window.QSYNC:null;
+let upT=null,upU=0;
+function syncUp(){
+  if(!QS||PARENT||!S||!S.u||S.u<=upU)return;
+  const u=S.u;
+  pack(S).then(code=>{
+    if(code.length>44000)return;
+    upU=u;
+    return fetch(QS.url,{method:'POST',mode:'no-cors',keepalive:true,headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({kid:QS.kid,code:code})})
+      .then(()=>{try{localStorage.setItem(KEY+'-up',String(u));}catch(e){}},()=>{upU=0;});
+  }).catch(()=>{});
+}
+function syncSoon(){if(!QS||PARENT)return;clearTimeout(upT);upT=setTimeout(syncUp,6000);}
+function syncDown(){
+  if(!QS||!fw||fw.mode!=='parent')return;
+  const my=fw;let pass='';try{pass=localStorage.getItem('qudurat-pass')||'';}catch(e){}
+  if(!pass){my.sync='nopass';drawRunner('keep');return;}
+  if(!my.st){my.sync='busy';drawRunner('keep');}
+  fetch(QS.url+'?pass='+encodeURIComponent(pass)+'&t='+Date.now()).then(r=>r.json()).then(d=>{
+    if(fw!==my)return;
+    if(!d||!d.ok){my.sync='badpass';drawRunner('keep');return;}
+    const k=d.kids&&d.kids[QS.kid];
+    if(!k||typeof k.code!=='string'){my.sync='empty';drawRunner('keep');return;}
+    my.sync='ok';
+    return applyFollow(k.code,my.u||0,'auto',false).then(()=>{
+      if(fw!==my)return;
+      my.saved='auto';
+      try{localStorage.setItem(FKEY,JSON.stringify({code:my.code,u:my.u,at:Date.now()}));}catch(e){}
+      drawRunner('keep');
+    });
+  }).catch(()=>{if(fw===my){my.sync='err';drawRunner('keep');}});
+}
+function syncNote(){
+  if(!QS||!PARENT||!fw.sync||fw.sync==='ok')return '';
+  const M={busy:'جارٍ جلب آخر تقدم من جواله…',empty:'لم يصل من جواله شيء بعد. يصل تلقائياً حين يفتح صفحته وهو متصل بالإنترنت.',err:'تعذّر الاتصال الآن. المعروض آخر ما حُفظ في هذا الجهاز.',
+    nopass:'لتظهر النتائج تلقائياً أدخل رمز المتابعة مرة واحدة في صفحة «الأبناء».',badpass:'رمز المتابعة المحفوظ غير صحيح. أعد إدخاله في صفحة «الأبناء».'};
+  return '<p class="muted" role="status" style="padding:0 4px">'+M[fw.sync]+'</p>';
+}
+document.addEventListener('visibilitychange',()=>{if(document.hidden)syncUp();else if(PARENT&&fw&&fw.mode==='parent')syncDown();});
 function initCloud(){
   const cl=window.claude;
   if(!cl||typeof cl.use!=='function')return;
@@ -2817,6 +2861,7 @@ function start(data){
   draw();
   initCloud();
   if(PARENT)parentBoot();
+  else{try{upU=+localStorage.getItem(KEY+'-up')||0;}catch(e){}syncSoon();}
   idbRead().then(t=>{
     if(!t)return;
     try{const o=JSON.parse(t);if(o&&(+o.u||0)>(+S.u||0)&&!run&&!sp&&!vs){S=norm(o);lsWrite(t);draw();}}catch(e){}
